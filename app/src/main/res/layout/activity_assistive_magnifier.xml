@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="wwz.com.assistivemagnifier.AssistiveMagnifier">
+
+    <TextureView
+        android:id="@+id/textureView"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageButton
+        android:id="@+id/screenshot_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@mipmap/screenshot_button"
+        android:contentDescription="@string/screenshot_button"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        tools:layout_editor_absoluteX="16dp"
+        tools:layout_editor_absoluteY="289dp" />
+
+    <ImageButton
+        android:id="@+id/zoom_in_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@mipmap/zoom_in_button"
+        android:contentDescription="@string/zoom_in_button"
+        tools:layout_editor_absoluteX="88dp"
+        tools:layout_editor_absoluteY="289dp"
+        android:layout_alignTop="@+id/screenshot_button"
+        android:layout_alignParentBottom="true"
+        android:layout_toEndOf="@+id/screenshot_button" />
+
+</RelativeLayout>
