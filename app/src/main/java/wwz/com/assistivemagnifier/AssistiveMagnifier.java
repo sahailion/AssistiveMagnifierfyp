@@ -79,6 +79,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
     private Handler aBackgroundHandler;
     private int totalRotation;
     private int sensorOrientation;
+    private boolean focused = false;
     private CameraCaptureSession aCameraCaptureSession;
     private CameraCaptureSession.CaptureCallback mCameraCaptureCallback = new
             CameraCaptureSession.CaptureCallback()
@@ -94,8 +95,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
                           Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
                           if(CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState || CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState)
                           {
-                              Toast.makeText(getApplicationContext(), "Camera Focused", Toast.LENGTH_SHORT).show();
-                              //captureStillPicture();
+                              focused = true;
                           }
                           break;
                   }
@@ -336,6 +336,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
                 checkWriteStoragePermission();
                 lockFocus();
                 captureStillPicture();
+                Toast.makeText(getApplicationContext(), "Photo captured and saved.", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -347,6 +348,10 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
             public void onClick(View view)
             {
                 lockFocus();
+                if(focused)
+                {
+                    Toast.makeText(getApplicationContext(), "Camera focused.", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
