@@ -77,6 +77,8 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
     private CaptureRequest.Builder aCaptureRequestBuilder;
     private HandlerThread aBackgroundHandlerThread;
     private Handler aBackgroundHandler;
+    private File screenshotFolder;
+    private String folderFileName;
     private int totalRotation;
     private int sensorOrientation;
     private boolean focused = false;
@@ -162,22 +164,6 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
                 }
             }
         }
-    }
-    private File screenshotFolder;
-    private String folderFileName;
-
-    static public MotionEvent obtain(long downTime, long eventTime, int action, float x, float y, int metastate) {
-        return null;
-    }
-
-    //Setting screen rotation resolution values
-    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static
-    {
-        ORIENTATIONS.append(Surface.ROTATION_0, 90);
-        ORIENTATIONS.append(Surface.ROTATION_90, 0);
-        ORIENTATIONS.append(Surface.ROTATION_180, 270);
-        ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
 
@@ -659,6 +645,152 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
 
     }
 
+    //capture picture while preview is still
+    private void captureStillPicture()
+    {
+        try
+        {
+            aCaptureRequestBuilder = aCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            aCaptureRequestBuilder.addTarget(aImageReader.getSurface());
+            aCaptureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, totalRotation);
+
+            CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback()
+            {
+                @Override
+                public void onCaptureStarted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, long timestamp, long frameNumber) {
+                    super.onCaptureStarted(session, request, timestamp, frameNumber);
+
+                    try
+                    {
+                        createScreenshotFileName();
+                    }
+                    catch (IOException e)
+                    {
+                        e.printStackTrace();
+                    }
+                }
+            };
+
+            aCameraCaptureSession.capture(aCaptureRequestBuilder.build(), captureCallback, null);
+        }
+        catch(CameraAccessException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    //create a file to store screenshots
+    private void createScreenshotFolder()
+    {
+        File imageFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        screenshotFolder = new File(imageFile, "AssistiveMagnifierScreenshot");
+        if(!screenshotFolder.exists())
+        {
+            screenshotFolder.mkdirs();
+        }
+    }
+
+    private File createScreenshotFileName() throws IOException
+    {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String prepend = "IMAGE_" + timeStamp + "_";
+        File imageFile = File.createTempFile(prepend, ".jpg", screenshotFolder);
+        folderFileName = imageFile.getAbsolutePath();
+        return imageFile;
+    }
+
+    //check storage permission to save photo
+    private void checkWriteStoragePermission()
+    {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        {
+            if(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED)
+            {
+                try
+                {
+                    createScreenshotFileName();
+                }
+                catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            else
+            {
+                if(shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE))
+                {
+                    Toast.makeText(this, "A folder needs to be created", Toast.LENGTH_SHORT).show();
+                }
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION);
+            }
+        }
+        else
+        {
+            try
+            {
+                createScreenshotFileName();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    //turn on flashlight
+    private void onFlash()
+    {
+        try
+        {
+            if(flashCameraId.equals(CAMERA_BACK))
+            {
+                aCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH);
+                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, null);
+                flashlightOn = true;
+            }
+        }
+        catch (CameraAccessException e)
+        {
+            e.printStackTrace();
+        }
+
+    }
+
+    //turn off flashlight
+    private void offFlash()
+    {
+        try
+        {
+            if(flashCameraId.equals(CAMERA_BACK))
+            {
+                aCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
+                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, null);
+                flashlightOn = false;
+            }
+        }
+        catch (CameraAccessException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+
+    //-------------------------------------------------------
+    //Functions which are not working
+    //-------------------------------------------------------
+
+    //Setting screen rotation resolution values
+    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
+    static
+    {
+        ORIENTATIONS.append(Surface.ROTATION_0, 90);
+        ORIENTATIONS.append(Surface.ROTATION_90, 0);
+        ORIENTATIONS.append(Surface.ROTATION_180, 270);
+        ORIENTATIONS.append(Surface.ROTATION_270, 180);
+    }
+
+    //zoom using button
     private void zoom_in()
     {
         try
@@ -695,6 +827,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
         }
     }
 
+    //zoom using pinch
     public boolean onTouch(View v, MotionEvent event)
     {
         try
@@ -763,130 +896,9 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
         return (float) Math.sqrt(x * x + y * y);
     }
 
-    private void captureStillPicture()
-    {
-        try
-        {
-            aCaptureRequestBuilder = aCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-            aCaptureRequestBuilder.addTarget(aImageReader.getSurface());
-            aCaptureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, totalRotation);
-
-            CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback()
-            {
-                @Override
-                public void onCaptureStarted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, long timestamp, long frameNumber) {
-                    super.onCaptureStarted(session, request, timestamp, frameNumber);
-
-                    try
-                    {
-                        createScreenshotFileName();
-                    }
-                    catch (IOException e)
-                    {
-                        e.printStackTrace();
-                    }
-                }
-            };
-
-            aCameraCaptureSession.capture(aCaptureRequestBuilder.build(), captureCallback, null);
-        }
-        catch(CameraAccessException e)
-        {
-            e.printStackTrace();
-        }
+    static public MotionEvent obtain(long downTime, long eventTime, int action, float x, float y, int metastate) {
+        return null;
     }
 
-    //create a file to store screenshots
-    private void createScreenshotFolder()
-    {
-        File imageFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-        screenshotFolder = new File(imageFile, "AssistiveMagnifierScreenshot");
-        if(!screenshotFolder.exists())
-        {
-            screenshotFolder.mkdirs();
-        }
-    }
-
-    private File createScreenshotFileName() throws IOException
-    {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String prepend = "IMAGE_" + timeStamp + "_";
-        File imageFile = File.createTempFile(prepend, ".jpg", screenshotFolder);
-        folderFileName = imageFile.getAbsolutePath();
-        return imageFile;
-    }
-
-    private void checkWriteStoragePermission()
-    {
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-        {
-            if(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED)
-            {
-                try
-                {
-                    createScreenshotFileName();
-                }
-                catch (IOException e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            else
-            {
-                if(shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE))
-                {
-                    Toast.makeText(this, "A folder needs to be created", Toast.LENGTH_SHORT).show();
-                }
-                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION);
-            }
-        }
-        else
-        {
-            try
-            {
-                createScreenshotFileName();
-            }
-            catch (IOException e)
-            {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void onFlash()
-    {
-        try
-        {
-            if(flashCameraId.equals(CAMERA_BACK))
-            {
-                aCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH);
-                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, null);
-                flashlightOn = true;
-            }
-        }
-        catch (CameraAccessException e)
-        {
-            e.printStackTrace();
-        }
-
-    }
-
-    private void offFlash()
-    {
-        try
-        {
-            if(flashCameraId.equals(CAMERA_BACK))
-            {
-                aCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
-                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, null);
-                flashlightOn = false;
-            }
-        }
-        catch (CameraAccessException e)
-        {
-            e.printStackTrace();
-        }
-    }
 
 }
