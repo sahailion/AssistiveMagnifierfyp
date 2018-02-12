@@ -836,7 +836,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
         }
     }
 
-    //zoom out 
+    //zoom out
     private void zoom_out()
     {
         int minWidth, minHeight, difWidth, difHeight, cropWidth, cropHeight;
