@@ -21,6 +21,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.support.v4.app.ActivityCompat;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
@@ -56,7 +57,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
-public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouchListener
+public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouchListener, ActivityCompat.OnRequestPermissionsResultCallback
 {
 
     private static final int REQUEST_CAMERA_PERMISSION = 0;
@@ -72,6 +73,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
     private Size aPreviewSize;
     private CameraManager flashCameraManager;
     private String flashCameraId = CAMERA_BACK;
+    private String zoomCameraId = CAMERA_BACK;
     private ImageButton flashlightButton;
     private boolean flashlightOn = false;
     private CaptureRequest.Builder aCaptureRequestBuilder;
@@ -81,6 +83,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
     private String folderFileName;
     private int totalRotation;
     private int sensorOrientation;
+    private Activity activity;
     private boolean focused = false;
     private CameraCaptureSession aCameraCaptureSession;
     private CameraCaptureSession.CaptureCallback mCameraCaptureCallback = new
@@ -351,6 +354,16 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
             }
         });
 
+        //zoom_out
+        ImageButton zoomOutButton = (ImageButton) findViewById(R.id.zoom_out_button);
+        zoomOutButton.setOnClickListener(new View.OnClickListener()
+        {
+          @Override
+          public void onClick(View view)
+          {
+              zoom_out();
+          }
+        });
 
     }
 
@@ -422,7 +435,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
                     {
                         //autofocus continuously
                         aCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                        //onFlash(aCaptureRequestBuilder);
+
                         aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, aBackgroundHandler);
                     }
                     catch (CameraAccessException e)
@@ -775,9 +788,105 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
         }
     }
 
+    //zoom in using button
+    private void zoom_in()
+    {
+        int minWidth, minHeight, difWidth, difHeight, cropWidth, cropHeight;
+        try
+        {
+            CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(flashCameraId);
+            zoom_level += 20;
+            float maxZoom = (cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM))*10;
+
+            Rect centerCanvas = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+
+            if(zoom_level >= maxZoom-20)
+            {
+                zoom_level -= 20;
+            }
+            else if (zoom_level < maxZoom) {
+                minWidth = (int) (centerCanvas.width() / maxZoom);
+                minHeight = (int) (centerCanvas.height() / maxZoom);
+                difWidth = centerCanvas.width() - minWidth;
+                difHeight = centerCanvas.height() - minHeight;
+                cropWidth = difWidth / 100 * (int) zoom_level;
+                cropHeight = difHeight / 100 * (int) zoom_level;
+                cropWidth -= cropWidth & 3;
+                cropHeight -= cropHeight & 3;
+                Rect zoom = new Rect(cropWidth, cropHeight, centerCanvas.width() - cropWidth, centerCanvas.height() - cropHeight);
+                aCaptureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom);
+            }
+            try
+            {
+                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, null);
+            }
+            catch (CameraAccessException e)
+            {
+                e.printStackTrace();
+            }
+            catch (NullPointerException ex)
+            {
+                ex.printStackTrace();
+            }
+        }
+        catch (CameraAccessException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    //zoom out using button
+    private void zoom_out()
+    {
+        int minWidth, minHeight, difWidth, difHeight, cropWidth, cropHeight;
+        try
+        {
+            CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(flashCameraId);
+            zoom_level -= 20;
+            float maxZoom = (cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM))*10;
+
+            Rect centerCanvas = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+
+            if(zoom_level == 1)
+            {
+                zoom_level += 20;
+            }
+            else if (zoom_level <= maxZoom+50) {
+                minWidth = (int) (centerCanvas.width() / maxZoom);
+                minHeight = (int) (centerCanvas.height() / maxZoom);
+                difWidth = centerCanvas.width() - minWidth;
+                difHeight = centerCanvas.height() - minHeight;
+                cropWidth = difWidth / 100 * (int) zoom_level;
+                cropHeight = difHeight / 100 * (int) zoom_level;
+                cropWidth -= cropWidth & 3;
+                cropHeight -= cropHeight & 3;
+                Rect zoom = new Rect(cropWidth, cropHeight, centerCanvas.width() - cropWidth, centerCanvas.height() - cropHeight);
+                aCaptureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom);
+            }
+            try
+            {
+                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), null, null);
+            }
+            catch (CameraAccessException e)
+            {
+                e.printStackTrace();
+            }
+            catch (NullPointerException ex)
+            {
+                ex.printStackTrace();
+            }
+        }
+        catch (CameraAccessException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
 
     //-------------------------------------------------------
-    //Functions which are not working
+    //Functions which are not working yet
     //-------------------------------------------------------
 
     //Setting screen rotation resolution values
@@ -790,42 +899,7 @@ public class AssistiveMagnifier extends AppCompatActivity implements View.OnTouc
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
-    //zoom using button
-    private void zoom_in()
-    {
-        try
-        {
-            CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-            CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(aCameraId);
-            zoom_level++;
-            float maxZoom = (cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM))*10;
 
-            Rect centerCanvas = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
-
-            if(zoom_level > maxZoom)
-            {
-                zoom_level = (int) maxZoom;
-            }
-            else if (zoom_level >= maxZoom)
-            {
-                int minWidth = (int) (centerCanvas.width() / maxZoom);
-                int minHeight = (int) (centerCanvas.height() / maxZoom);
-                int difWidth = centerCanvas.width() - minWidth;
-                int difHeight = centerCanvas.height() - minHeight;
-                int cropWidth = difWidth / 100 * (int)zoom_level;
-                int cropHeight = difHeight / 100 * (int)zoom_level;
-                cropWidth -= cropWidth & 3;
-                cropHeight -= cropHeight & 3;
-                Rect zoom = new Rect(cropWidth, cropHeight, centerCanvas.width() - cropWidth, centerCanvas.height() - cropHeight);
-                aCaptureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom);
-                aCameraCaptureSession.setRepeatingRequest(aCaptureRequestBuilder.build(), mCameraCaptureCallback, null);
-            }
-        }
-        catch (CameraAccessException e)
-        {
-            e.printStackTrace();
-        }
-    }
 
     //zoom using pinch
     public boolean onTouch(View v, MotionEvent event)
